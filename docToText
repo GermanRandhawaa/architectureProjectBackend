@@ -1,0 +1,11 @@
+// give me a function that when caalled, takes a doc file and then returns the text in it
+// input: doc file
+// output: text in the doc file
+// constraints: none
+// edge cases: none
+// assumptions: none
+// test cases: none
+// justifications: none
+// explanation: none
+// time complexity: O(n)
+// space complexity: O(n)
