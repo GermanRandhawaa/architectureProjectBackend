@@ -17,7 +17,12 @@ const swaggerUi = require("swagger-ui-express");
 app.use(express.static(__dirname));
 
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: 'https://resumeparser-s3.onrender.com', // Replace with the actual origin of your frontend
+    credentials: true,
+  })
+);
 app.use(helmet());
 app.use(express.urlencoded({ extended: true }));
 
@@ -43,14 +48,14 @@ const verifyToken = (req, res, next) => {
     jwt.verify(token, secretKey, (err, decoded) => {
       if (err) {
         res.clearCookie("jwt");
-        res.redirect("/login");
+        res.redirect("/index");
       } else {
         req.user = decoded;
         next();
       }
     });
   } else {
-    res.redirect("/login");
+    res.redirect("/index");
   }
 };
 
