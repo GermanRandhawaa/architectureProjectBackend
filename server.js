@@ -17,12 +17,7 @@ const swaggerUi = require("swagger-ui-express");
 app.use(express.static(__dirname));
 
 app.use(express.json());
-app.use(
-  cors({
-    origin: "*",
-    credentials: true,
-  })
-);
+app.use(cors());
 app.use(helmet());
 app.use(express.urlencoded({ extended: true }));
 
