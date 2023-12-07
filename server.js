@@ -564,8 +564,8 @@ app.delete("/users/:username", deleteUser);
  * @swagger
  * /incrementCount/{username}:
  *   patch:
- *     summary: Increment API call count for a user
- *     description: Increments the API call count for the specified user
+ *     summary: Set API call to 1. 
+ *     description: Sets API count call for a user to one. 
  *     tags:
  *       - Users
  *     parameters:
