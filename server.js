@@ -133,32 +133,22 @@ app.post("/login", async (req, res) => {
         const { password: hashedPassword, role } = results[0];
         const match = await bcrypt.compare(password, hashedPassword);
         if (match) {
-          // Update the api_calls column in the calls table
-          const updateQuery =
-            "INSERT INTO calls (username, api_calls) VALUES (?, 1) ON DUPLICATE KEY UPDATE api_calls = api_calls + 1";
-          connection.query(updateQuery, [username], (updateError) => {
-            if (updateError) {
-              console.error("Error updating api_calls:", updateError);
-              res.status(500).json({ message: config.api });
-            } else {
-              const token = jwt.sign({ username, role }, secretKey, {
-                expiresIn: "1h",
-              });
-
-              res.cookie("jwt", token, {
-                httpOnly: true,
-                maxAge: 3600000, // 1 hour
-                sameSite: "strict",
-              });
-
-              // Send the user's role along with the successful login message
-              res.json({
-                message: config.db.login,
-                role,
-                apiCallCount: userApiCallCounts[username],
-              });
-            }
+          const token = jwt.sign({ username, role }, secretKey, {
+            expiresIn: "1h",
           });
+
+          res.cookie("jwt", token, {
+            httpOnly: true,
+            maxAge: 3600000, // 1 hour
+            sameSite: "strict",
+          });
+
+          res.json({
+            message: config.db.login,
+            role,
+            apiCallCount: userApiCallCounts[username],
+          });
+
           connection.query(
             "SELECT * FROM epcounter WHERE username = ?",
             [username],
@@ -452,6 +442,65 @@ const deleteUser = (req, res) => {
     });
   });
 };
+
+app.post("/updateAllCalls", async (req, res) => {
+  // Query to get all usernames from the users table
+  connection.query("SELECT username FROM users", async (error, users) => {
+    if (error) {
+      return res.status(500).json({ message: "Error fetching users" });
+    }
+
+    for (const user of users) {
+      // Existing logic to update calls for each user
+      const { username } = user;
+      const results = await queryEpCounter(username);
+      if (results) {
+        const { descAnalysis, resumeFeedback, jobFeedback } = results[0];
+        const apiCalls = descAnalysis + resumeFeedback + jobFeedback;
+        await updateCallsTable(username, apiCalls);
+      }
+    }
+
+    // Send a success response
+    res.json({ message: "Calls updated for all users." });
+  });
+});
+
+// Function to query epcounter
+function queryEpCounter(username) {
+  return new Promise((resolve, reject) => {
+    connection.query(
+      "SELECT descAnalysis, resumeFeedback, jobFeedback FROM epcounter WHERE username = ?",
+      [username],
+      (error, results) => {
+        if (error) {
+          console.error(error);
+          reject(null);
+        } else {
+          resolve(results);
+        }
+      }
+    );
+  });
+}
+
+// Function to update calls table
+function updateCallsTable(username, apiCalls) {
+  return new Promise((resolve, reject) => {
+    const insertQuery =
+      "INSERT INTO calls (username, api_calls) VALUES (?, ?) ON DUPLICATE KEY UPDATE api_calls = ?";
+    connection.query(insertQuery, [username, apiCalls, apiCalls], (error) => {
+      if (error) {
+        console.error(error);
+        reject();
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+
 
 function del(username, res, callback) {
   const updateQuery = "UPDATE epcounter SET deleteCount = IFNULL(deleteCount, 0) + 1 WHERE username = ?";
