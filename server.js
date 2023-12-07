@@ -271,18 +271,18 @@ const getAllUserInfos = (req, res) => {
   });
 };
 
-// const getAllUserCalls = (req, res) => {
-//   const query = "SELECT * FROM calls";
-//   connection.query(query, (error, results) => {
-//     if (error) {
-//       console.error(config.user_info, error);
-//       res.status(500).json({ message: config.user_info });
-//     } else {
-//       // Send user information as a JSON response
-//       res.json(results);
-//     }
-//   });
-// };
+const getAllUserCalls = (req, res) => {
+  const query = "SELECT * FROM calls";
+  connection.query(query, (error, results) => {
+    if (error) {
+      console.error(config.user_info, error);
+      res.status(500).json({ message: config.user_info });
+    } else {
+      // Send user information as a JSON response
+      res.json(results);
+    }
+  });
+};
 
 const getAllUserEp = (req, res) => {
   const query = "SELECT * FROM epcounter";
@@ -351,7 +351,7 @@ app.get("/get-all-users", getAllUserInfos);
  *             example:
  *               message: Error querying user information
  */
-// app.get("/get-calls", getAllUserCalls);
+app.get("/get-calls", getAllUserCalls);
 
 /**
  * @swagger
@@ -392,11 +392,10 @@ app.get("/get-all-users", getAllUserInfos);
  *               message: Error querying user information
  */
 app.get("/get-ep", getAllUserEp);
-
 const deleteUser = (req, res) => {
   const { username } = req.params;
 
-  // Delete the user from the database
+  // Delete the user from the users table
   const deleteQuery = "DELETE FROM users WHERE username = ?";
   connection.query(deleteQuery, [username], (error, results) => {
     if (error) {
@@ -404,16 +403,36 @@ const deleteUser = (req, res) => {
       return res.status(500).json({ message: "Error deleting user" });
     }
 
-    // Check if the user was found and deleted
+    // Check if the user was found and deleted from the users table
     if (results.affectedRows > 0) {
       console.log(`User ${username} deleted successfully`);
-      // Call the del function with the username
       del(username, res);
+      
+      // Array of tables where the user's data needs to be deleted
+      const tables = ['epcounter', 'calls' ]; // Add your table names here
+
+      // Iterate through tables and delete user's data
+      tables.forEach(table => {
+        const deleteUserDataQuery = `DELETE FROM ${table} WHERE username = ?`;
+        connection.query(deleteUserDataQuery, [username], (error, results) => {
+          if (error) {
+            console.error(`Error deleting user data from ${table}:`, error);
+            return res.status(500).json({ message: `Error deleting user data from ${table}` });
+          }
+          console.log(`User data deleted from ${table}`);
+        });
+      });
+
+      res.status(200).json({ message: `User ${username} and associated data deleted successfully` });
     } else {
       res.status(404).json({ message: `User ${username} not found` });
     }
   });
 };
+
+
+
+
 
 /**
  * @swagger
