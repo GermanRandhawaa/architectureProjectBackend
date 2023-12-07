@@ -449,6 +449,7 @@ const deleteUser = (req, res) => {
               res.status(500).json({ message: "Error during transaction commit" });
             });
           }
+          del(username, res);
           res.status(200).json({ message: `User ${username} and associated data deleted successfully` });
         });
       }).catch(error => {
@@ -686,49 +687,6 @@ function calls_counter(username){
 };
 
 
-/**
- * @swagger
- * /userinfos/{username}:
- *   patch:
- *     summary: Increment userinfos count for a user
- *     description: Increments the userinfos count for the specified user
- *     tags:
- *       - Users
- *     parameters:
- *       - in: path
- *         name: username
- *         required: true
- *         description: The username for which to increment the userinfos count
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Userinfos count incremented successfully
- *         content:
- *           application/json:
- *             example:
- *               message: Column updated successfully
- *       500:
- *         description: Internal server error
- *         content:
- *           application/json:
- *             example:
- *               error: Error updating userinfos count
- */
-app.patch("/userinfos/:username", (req, res) => {
-  const { username } = req.params;
-  const updateQuery =
-    "UPDATE epcounter SET userinfos = IFNULL(userinfos, 0) + 1 WHERE username = ?";
-
-  connection.query(updateQuery, [username], (updateError) => {
-    if (updateError) {
-      console.error(config.userinfos, updateError);
-      res.status(500).json({ error: config.userinfos });
-    } else {
-      res.json({ message: config.updateSuccess });
-    }
-  });
-})
 
 
 function del(username, res) {
