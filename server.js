@@ -169,7 +169,7 @@ app.post("/login", async (req, res) => {
               } else if (results.length === 0) {
                 // Username not found, initialize user's epcounter
                 connection.query(
-                  "INSERT INTO epcounter (username, descAnalysis, resumeFeedback, jobFeedback, calls, login,  deleteCount) VALUES (?, 0, 0, 0, 0, 0, 0);",
+                  "INSERT INTO epcounter (username, descAnalysis, resumeFeedback, jobFeedback, calls, login,  deleteCount) VALUES (?, 0, 0, 0, 0, 1, 0);",
                   [username],
                   (insertError) => {
                     if (insertError) {
