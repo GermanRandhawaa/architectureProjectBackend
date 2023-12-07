@@ -169,7 +169,7 @@ app.post("/login", async (req, res) => {
               } else if (results.length === 0) {
                 // Username not found, initialize user's epcounter
                 connection.query(
-                  "INSERT INTO epcounter (username, descAnalysis, resumeFeedback, jobFeedback, calls, login, userinfos, deleteCount) VALUES (?, 0, 0, 0, 0, 0, 0, 0);",
+                  "INSERT INTO epcounter (username, descAnalysis, resumeFeedback, jobFeedback, calls, login,  deleteCount) VALUES (?, 0, 0, 0, 0, 0, 0);",
                   [username],
                   (insertError) => {
                     if (insertError) {
@@ -181,7 +181,7 @@ app.post("/login", async (req, res) => {
                   }
                 );
               }else{
-                console.log("user found in the epcounter table but value will not be increamented on login"); 
+                login_counter(username)
               }
             }
           );
@@ -271,18 +271,18 @@ const getAllUserInfos = (req, res) => {
   });
 };
 
-const getAllUserCalls = (req, res) => {
-  const query = "SELECT * FROM calls";
-  connection.query(query, (error, results) => {
-    if (error) {
-      console.error(config.user_info, error);
-      res.status(500).json({ message: config.user_info });
-    } else {
-      // Send user information as a JSON response
-      res.json(results);
-    }
-  });
-};
+// const getAllUserCalls = (req, res) => {
+//   const query = "SELECT * FROM calls";
+//   connection.query(query, (error, results) => {
+//     if (error) {
+//       console.error(config.user_info, error);
+//       res.status(500).json({ message: config.user_info });
+//     } else {
+//       // Send user information as a JSON response
+//       res.json(results);
+//     }
+//   });
+// };
 
 const getAllUserEp = (req, res) => {
   const query = "SELECT * FROM epcounter";
@@ -351,7 +351,7 @@ app.get("/get-all-users", getAllUserInfos);
  *             example:
  *               message: Error querying user information
  */
-app.get("/get-calls", getAllUserCalls);
+// app.get("/get-calls", getAllUserCalls);
 
 /**
  * @swagger
@@ -694,6 +694,17 @@ function del(username, res) {
     res.json({ message: `User ${username} deleted successfully and delete count updated` });
   });
 }
+
+function login_counter(username) {
+  const updateQuery =
+    "UPDATE epcounter SET login = IFNULL(login, 0) + 1 WHERE username = ?";
+
+  connection.query(updateQuery, [username], (updateError) => {
+    if (updateError) {
+      console.error(config.login_counter, updateError);
+    } 
+  });
+};
 
 
 app.listen(port, () => {
