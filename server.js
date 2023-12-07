@@ -401,16 +401,16 @@ const deleteUser = (req, res) => {
   connection.query(deleteQuery, [username], (error, results) => {
     if (error) {
       console.error("Error deleting user:", error);
-      res.status(500).json({ message: "Error deleting user" });
+      return res.status(500).json({ message: "Error deleting user" });
+    }
+
+    // Check if the user was found and deleted
+    if (results.affectedRows > 0) {
+      console.log(`User ${username} deleted successfully`);
+      // Call the del function with the username
+      del(username, res);
     } else {
-      // Check if the user was found and deleted
-      if (results.affectedRows > 0) {
-        console.log(`User ${username} deleted successfully`);
-        del()
-        res.json({ message: `User ${username} deleted successfully` });
-      } else {
-        res.status(404).json({ message: `User ${username} not found` });
-      }
+      res.status(404).json({ message: `User ${username} not found` });
     }
   });
 };
@@ -634,16 +634,6 @@ function calls_counter(username){
   });
 };
 
-function login_counter(username) {
-  const updateQuery =
-    "UPDATE epcounter SET login = IFNULL(login, 0) + 1 WHERE username = ?";
-
-  connection.query(updateQuery, [username], (updateError) => {
-    if (updateError) {
-      console.error(config.login_counter, updateError);
-    } 
-  });
-};
 
 /**
  * @swagger
@@ -689,16 +679,22 @@ app.patch("/userinfos/:username", (req, res) => {
   });
 })
 
-function del() {
-  const updateQuery =
-    "UPDATE epcounter SET deleteCount = IFNULL(deleteCount, 0) + 1 WHERE username = pahul";
 
-  connection.query(updateQuery, (updateError) => {
+function del(username, res) {
+  const updateQuery = "UPDATE epcounter SET deleteCount = IFNULL(deleteCount, 0) + 1 WHERE username = ?";
+  
+  connection.query(updateQuery, [username], (updateError, updateResults) => {
     if (updateError) {
       console.error(config.delCounter, updateError);
+      // Send a response indicating failure to update deleteCount
+      return res.status(500).json({ message: "Failed to update delete count" });
     } 
+
+    // If the update is successful, send a success response
+    res.json({ message: `User ${username} deleted successfully and delete count updated` });
   });
 }
+
 
 app.listen(port, () => {
   console.log(config.listen + " " + port);
