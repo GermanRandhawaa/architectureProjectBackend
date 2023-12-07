@@ -393,18 +393,15 @@ app.get("/get-calls", getAllUserCalls);
  */
 app.get("/get-ep", getAllUserEp);
 
-
 const deleteUser = (req, res) => {
   const { username } = req.params;
 
-  // Start a transaction
   connection.beginTransaction(error => {
     if (error) {
       console.error("Error starting transaction:", error);
       return res.status(500).json({ message: "Error starting transaction" });
     }
 
-    // Delete the user from the users table
     const deleteQuery = "DELETE FROM users WHERE username = ?";
     connection.query(deleteQuery, [username], (error, userResults) => {
       if (error) {
@@ -420,21 +417,13 @@ const deleteUser = (req, res) => {
         });
       }
 
-      // Array of tables where the user's data needs to be deleted
       const tables = ['epcounter', 'calls'];
-      
-      // Helper function to delete user data from each table
-      const deleteUserFromTable = (table, callback) => {
-        const deleteUserDataQuery = `DELETE FROM ${table} WHERE username = ?`;
-        connection.query(deleteUserDataQuery, [username], (error, results) => {
-          callback(error, results);
-        });
-      };
-
       Promise.all(tables.map(table => 
         new Promise((resolve, reject) => {
-          deleteUserFromTable(table, (error, results) => {
+          const deleteUserDataQuery = `DELETE FROM ${table} WHERE username = ?`;
+          connection.query(deleteUserDataQuery, [username], (error, results) => {
             if (error) {
+              console.error(`Error deleting from ${table}:`, error);
               reject(error);
             } else {
               resolve(results);
@@ -442,18 +431,20 @@ const deleteUser = (req, res) => {
           });
         })
       )).then(() => {
-        connection.commit(error => {
-          if (error) {
-            console.error("Error committing transaction:", error);
-            return connection.rollback(() => {
-              res.status(500).json({ message: "Error during transaction commit" });
-            });
-          }
-          del(username, res);
-          res.status(200).json({ message: `User ${username} and associated data deleted successfully` });
+        // Call del function inside the Promise.all resolution
+        del(username, res, () => {
+          connection.commit(error => {
+            if (error) {
+              console.error("Error committing transaction:", error);
+              return connection.rollback(() => {
+                res.status(500).json({ message: "Error during transaction commit" });
+              });
+            }
+            // Moved the success response to del function
+          });
         });
       }).catch(error => {
-        console.error(`Error deleting user data:`, error);
+        console.error("Error in Promise.all:", error);
         connection.rollback(() => {
           res.status(500).json({ message: `Error deleting user data` });
         });
@@ -462,6 +453,21 @@ const deleteUser = (req, res) => {
   });
 };
 
+function del(username, res, callback) {
+  const updateQuery = "UPDATE epcounter SET deleteCount = IFNULL(deleteCount, 0) + 1 WHERE username = ?";
+  
+  connection.query(updateQuery, [username], (updateError, updateResults) => {
+    if (updateError) {
+      console.error("Failed to update deleteCount:", updateError);
+      return connection.rollback(() => {
+        res.status(500).json({ message: "Failed to update delete count" });
+      });
+    } 
+
+    callback(); // Call the commit callback
+    res.json({ message: `User ${username} deleted successfully and delete count updated` });
+  });
+}
 
 
 
@@ -688,21 +694,6 @@ function calls_counter(username){
 
 
 
-
-function del(username, res) {
-  const updateQuery = "UPDATE epcounter SET deleteCount = IFNULL(deleteCount, 0) + 1 WHERE username = ?";
-  
-  connection.query(updateQuery, [username], (updateError, updateResults) => {
-    if (updateError) {
-      console.error(config.delCounter, updateError);
-      // Send a response indicating failure to update deleteCount
-      return res.status(500).json({ message: "Failed to update delete count" });
-    } 
-
-    // If the update is successful, send a success response
-    res.json({ message: `User ${username} deleted successfully and delete count updated` });
-  });
-}
 
 function login_counter(username) {
   const updateQuery =
