@@ -392,43 +392,75 @@ app.get("/get-calls", getAllUserCalls);
  *               message: Error querying user information
  */
 app.get("/get-ep", getAllUserEp);
+
+
 const deleteUser = (req, res) => {
   const { username } = req.params;
 
-  // Delete the user from the users table
-  const deleteQuery = "DELETE FROM users WHERE username = ?";
-  connection.query(deleteQuery, [username], (error, results) => {
+  // Start a transaction
+  connection.beginTransaction(error => {
     if (error) {
-      console.error("Error deleting user:", error);
-      return res.status(500).json({ message: "Error deleting user" });
+      console.error("Error starting transaction:", error);
+      return res.status(500).json({ message: "Error starting transaction" });
     }
 
-    // Check if the user was found and deleted from the users table
-    if (results.affectedRows > 0) {
-      console.log(`User ${username} deleted successfully`);
-      del(username, res);
-      
-      // Array of tables where the user's data needs to be deleted
-      const tables = ['epcounter', 'calls' ]; // Add your table names here
+    // Delete the user from the users table
+    const deleteQuery = "DELETE FROM users WHERE username = ?";
+    connection.query(deleteQuery, [username], (error, userResults) => {
+      if (error) {
+        console.error("Error deleting user:", error);
+        return connection.rollback(() => {
+          res.status(500).json({ message: "Error deleting user" });
+        });
+      }
 
-      // Iterate through tables and delete user's data
-      tables.forEach(table => {
+      if (userResults.affectedRows === 0) {
+        return connection.rollback(() => {
+          res.status(404).json({ message: `User ${username} not found` });
+        });
+      }
+
+      // Array of tables where the user's data needs to be deleted
+      const tables = ['epcounter', 'calls'];
+      
+      // Helper function to delete user data from each table
+      const deleteUserFromTable = (table, callback) => {
         const deleteUserDataQuery = `DELETE FROM ${table} WHERE username = ?`;
         connection.query(deleteUserDataQuery, [username], (error, results) => {
+          callback(error, results);
+        });
+      };
+
+      Promise.all(tables.map(table => 
+        new Promise((resolve, reject) => {
+          deleteUserFromTable(table, (error, results) => {
+            if (error) {
+              reject(error);
+            } else {
+              resolve(results);
+            }
+          });
+        })
+      )).then(() => {
+        connection.commit(error => {
           if (error) {
-            console.error(`Error deleting user data from ${table}:`, error);
-            return res.status(500).json({ message: `Error deleting user data from ${table}` });
+            console.error("Error committing transaction:", error);
+            return connection.rollback(() => {
+              res.status(500).json({ message: "Error during transaction commit" });
+            });
           }
-          console.log(`User data deleted from ${table}`);
+          res.status(200).json({ message: `User ${username} and associated data deleted successfully` });
+        });
+      }).catch(error => {
+        console.error(`Error deleting user data:`, error);
+        connection.rollback(() => {
+          res.status(500).json({ message: `Error deleting user data` });
         });
       });
-
-      res.status(200).json({ message: `User ${username} and associated data deleted successfully` });
-    } else {
-      res.status(404).json({ message: `User ${username} not found` });
-    }
+    });
   });
 };
+
 
 
 
