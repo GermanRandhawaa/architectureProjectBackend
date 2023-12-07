@@ -129,11 +129,6 @@ app.post("/login", async (req, res) => {
       console.error(config.db.err, error);
       res.status(500).json({ message: config.db.err });
     } else {
-      // Increment the API call count for the specific user
-      userApiCallCounts[username] = (userApiCallCounts[username] || 0) + 1;
-
-      console.log(`${username} API Call Count:`, userApiCallCounts[username]); // Log the API call count
-
       if (results.length > 0) {
         const { password: hashedPassword, role } = results[0];
         const match = await bcrypt.compare(password, hashedPassword);
@@ -172,9 +167,9 @@ app.post("/login", async (req, res) => {
                 console.error(config.db.username, error);
                 res.status(500).json({ error: config.server });
               } else if (results.length === 0) {
-                // Username not found, initialize with a value of 1
+                // Username not found, initialize user's epcounter
                 connection.query(
-                  "INSERT INTO epcounter (username, descAnalysis, resumeFeedback, jobFeedback, calls, login, userinfos, deleteCount) VALUES (?, 0, 0, 0, 0, 1, 0, 0);",
+                  "INSERT INTO epcounter (username, descAnalysis, resumeFeedback, jobFeedback, calls, login, userinfos, deleteCount) VALUES (?, 0, 0, 0, 0, 0, 0, 0);",
                   [username],
                   (insertError) => {
                     if (insertError) {
@@ -186,7 +181,7 @@ app.post("/login", async (req, res) => {
                   }
                 );
               }else{
-                login_counter(username)
+                console.log("user found in the epcounter table but value will not be increamented on login"); 
               }
             }
           );
